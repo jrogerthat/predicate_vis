@@ -1,4 +1,5 @@
 from copyreg import pickle
+from aem import con
 from flask import Flask, render_template, request
 import os
 import json
@@ -21,10 +22,12 @@ num_bins = 100
 
 session_id = "49324312"
 predicates_path = f'static/data/predicates_{session_id}.pkl'
+predicate_id_path = f'static/data/predicate_id_{session_id}.json'
 
 @app.route("/")
 def index():
-    save_predicates([], predicates_path)
+    save_predicates({}, predicates_path)
+    save_predicate_id(0, predicate_id_path)
     return render_template("index.html")
 
 def load_data(data_path):
@@ -45,6 +48,15 @@ def save_predicates(predicates, predicates_path):
     with open(f"{path}/{predicates_path}", 'wb') as f:
         pickle.dump(predicates, f)
     return predicates
+
+def load_predicate_id(predicate_id_path):
+    with open(f"{path}/{predicate_id_path}", 'r') as f:
+        predicate_id = json.load(f)['predicate_id']
+    return predicate_id
+
+def save_predicate_id(predicate_id, predicate_id_path):
+    with open(f"{path}/{predicate_id_path}", 'w') as f:
+        json.dump({'predicate_id': predicate_id}, f)
 
 def plot_predicates(predicates, target, num_bins=25):
     data = load_data(data_path)
@@ -71,10 +83,10 @@ def parse_feature_values(feature, values, dtypes):
     return values
 
 def update_predicates(feature_values_list=None, copy_predicate_indices=None, negate_predicate_indices=None, delete_predicate_indices=None):
-    print('update_predicates', feature_values_list, copy_predicate_indices)
     predicates = load_predicates(predicates_path)
     data = load_data(data_path)
     dtypes = load_dtypes(dtypes_path)
+    predicate_id = load_predicate_id(predicate_id_path)
 
     if feature_values_list is not None:
         parsed_feature_values_list = [{feature: parse_feature_values(feature, values, dtypes) for feature,values in feature_values.items()} for feature_values in feature_values_list]
@@ -92,10 +104,11 @@ def update_predicates(feature_values_list=None, copy_predicate_indices=None, neg
             predicates[int(i)].negate()
 
     new_predicates = added_predicates + copied_predicates
-    new_display = [PredicateDisplay(i+len(predicates), new_predicates[i].feature_values, dtypes).display() for i in range(len(new_predicates))]
-    for predicate in new_predicates:
-        predicate.fit(data)
-    predicates = predicates + new_predicates
+    new_display = {i+predicate_id: PredicateDisplay(i+predicate_id, new_predicates[i].feature_values, dtypes).display() for i in range(len(new_predicates))}
+    save_predicate_id(predicate_id + len(new_predicates), predicate_id_path)
+    for i in range(len(new_predicates)):
+        new_predicates[i].fit(data)
+        predicates[i+predicate_id] = new_predicates[i]
     save_predicates(predicates, predicates_path)
 
     spec = plot_predicates(predicates, target, num_bins)
@@ -103,7 +116,6 @@ def update_predicates(feature_values_list=None, copy_predicate_indices=None, neg
 
 @app.route("/predicate", methods=['PUT'])
 def add_predicate():
-    print('add_predicate')
     request_data = request.get_json(force=True)
     feature_values = request_data['feature_values']
     copy_index = request_data['copy_index']

@@ -53,11 +53,11 @@ class PredicateDisplay:
         return style
     
     def display_buttons(self):
-        hide = f"<button id='hide-{self.predicate_id}' class='predicate-button hide-button'><i class='fa fa-eye'></i></button>"
-        copy = f"<button id='copy-{self.predicate_id}' class='predicate-button copy-button'><i class='fa fa-copy'></i></button>"
-        delete = f"<button id='delete-{self.predicate_id}' class='predicate-button delete-button'><i class='fa fa-trash'></i></button>"
-        negate = f"<button id='negate-{self.predicate_id}' class='predicate-button negate-button'><i class='fa fa-ban'></i></button>"
-        color = f"<button id='color-{self.predicate_id}' class='predicate-button color-button'><i class='fa fa-palette'></i></button>"
+        hide = f"<button id='hide-{self.predicate_id}-button' class='predicate-button hide-button'><i class='fa fa-eye'></i></button>"
+        copy = f"<button id='copy-{self.predicate_id}-button' class='predicate-button copy-button'><i class='fa fa-copy'></i></button>"
+        delete = f"<button id='delete-{self.predicate_id}-button' class='predicate-button delete-button'><i class='fa fa-trash'></i></button>"
+        negate = f"<button id='negate-{self.predicate_id}-button' class='predicate-button negate-button'><i class='fa fa-ban'></i></button>"
+        color = f"<button id='color-{self.predicate_id}-button' class='predicate-button color-button'><i class='fa fa-palette'></i></button>"
         buttons = [copy, negate, color, hide, delete]
         return ''.join(buttons)
         

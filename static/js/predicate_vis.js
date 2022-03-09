@@ -10,45 +10,42 @@ class PredicateVis {
             if (feature_values != null){
                 this.add_predicate(feature_values, null, null).then(function(resp){
                     this.plot_spec(resp['plot'])
-                    for (var i=0; i<resp['display'].length; i++){
+                    for (var i in resp['display']){
                         $("#predicates").append(resp['display'][i])
+                        this.bind_buttons(i)
                     }
-                    this.bind_buttons()
                 }.bind(this))
             }
         }.bind(this))
     }
 
-    bind_copy(){
-        $(".copy-button").click(function(element){
-            var index = element.currentTarget.id.split('-')[1]
-            this.add_predicate(null, index, null).then(function(resp){
+    bind_button(id, feature_values, copy_index, negate_index){
+        $("#" + id).click(function(){
+            this.add_predicate(feature_values, copy_index, negate_index).then(function(resp){
                 this.plot_spec(resp['plot'])
-                for (var i=0; i<resp['display'].length; i++){
+                for (var i in resp['display']){
                     $("#predicates").append(resp['display'][i])
+                    this.bind_buttons(i)
                 }
-                this.bind_buttons()
             }.bind(this))
         }.bind(this))
     }
 
-    bind_negate(){
-        $(".negate-button").click(function(element){
-            var index = element.currentTarget.id.split('-')[1]
+    bind_copy_button(index){
+        this.bind_button("copy-" + index + "-button", null, index, null)
+    }
+
+    bind_negate_button(index){
+        var id = "negate-" + index + "-button"
+        $("#" + id).click(function(){
             $("#negate-" + index).toggle()
-            this.add_predicate(null, null, index).then(function(resp){
-                this.plot_spec(resp['plot'])
-                for (var i=0; i<resp['display'].length; i++){
-                    $("#predicates").append(resp['display'][i])
-                }
-                this.bind_buttons()
-            }.bind(this))
-        }.bind(this))
+        })
+        this.bind_button(id, null, null, index)
     }
 
-    bind_buttons(){
-        this.bind_copy()
-        this.bind_negate()
+    bind_buttons(index){
+        this.bind_copy_button(index)
+        this.bind_negate_button(index)
     }
 
     make_dashboard(){
@@ -115,7 +112,6 @@ class PredicateVis {
     }
 
     add_predicate(feature_values, copy_index, negate_index){
-        console.log('add_predicate')
         return $.ajax({
             url: '/predicate',
             type: "PUT",
