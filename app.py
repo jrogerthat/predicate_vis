@@ -1,5 +1,4 @@
 from copyreg import pickle
-from aem import con
 from flask import Flask, render_template, request
 import os
 import json
@@ -8,7 +7,9 @@ import numpy as np
 import pickle
 import altair as alt
 from predicate_display import PredicateDisplay, PredicateEntry
-from predicate_induction import Predicate
+from control import Control
+
+from predicate_induction_main import Predicate
 
 app = Flask(__name__)
 app.secret_key = ''
@@ -18,6 +19,7 @@ colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e3
 data_path = 'static/data/data.csv'
 dtypes_path = 'static/data/dtypes.json'
 target = 'score'
+target_features = ['numeric_1', 'numeric_2', 'numeric_3']
 num_bins = 100
 
 session_id = "49324312"
@@ -26,9 +28,10 @@ predicate_id_path = f'static/data/predicate_id_{session_id}.json'
 
 @app.route("/")
 def index():
-    save_predicates({}, predicates_path)
+    save_predicates({'default': {}, 'hidden': {}, 'archived': {}}, predicates_path)
     save_predicate_id(0, predicate_id_path)
-    return render_template("index.html")
+    y_select = Control(target_features).display()
+    return render_template("index.html", y_select=y_select)
 
 def load_data(data_path):
     data = pd.read_csv(f'{path}/{data_path}')
@@ -60,15 +63,34 @@ def save_predicate_id(predicate_id, predicate_id_path):
 
 def plot_predicates(predicates, target, num_bins=25):
     data = load_data(data_path)
-    hist = pd.concat([predicates[i].get_distribution(data[target], num_bins).assign(predicate_id=i) for i in range(len(predicates))])
-    range_ = colors[:len(predicates)]
+    hist = pd.concat([predicates[i].get_distribution(data[target], num_bins).assign(predicate_id=i) for i in predicates.keys()])
+    range_ = [colors[i] for i in predicates.keys()]
     spec = json.loads(alt.Chart(hist).mark_bar().encode(
         x='bin',
         y='density',
-        color=alt.Color('predicate_id', scale=alt.Scale(domain=list(range(len(predicates))), range=range_), legend=None)
+        color=alt.Color('predicate_id', scale=alt.Scale(domain=list(predicates.keys()), range=range_), legend=None)
     ).configure_mark(
         opacity=0.5,
     ).configure_scale(bandPaddingInner=0).to_json())
+    spec['width'] = 'container'
+    spec['height'] = 'container'
+    return spec
+
+def plot_predicate(predicate, x_feature, target_features):
+    filter = predicate.feature_mask[[col for col in predicate.feature_mask.columns if col != x_feature]].all(axis=1)
+    data = load_data(data_path)
+    dtypes = load_dtypes(dtypes_path)
+    d = pd.melt(data.loc[filter], x_feature, target_features)
+    print(d)
+    if dtypes[x_feature] == 'nominal':
+        x_encoding = f'{x_feature}:O'
+    else:
+        x_encoding = alt.X(f"{x_feature}:Q", bin=True)
+    spec = json.loads(alt.Chart(d).mark_bar().encode(
+        x=x_encoding,
+        y=f'mean(value):Q',
+        color=f'variable:N',
+    ).to_json())
     spec['width'] = 'container'
     spec['height'] = 'container'
     return spec
@@ -82,57 +104,203 @@ def parse_feature_values(feature, values, dtypes):
         values = [pd.to_datetime(values[0]), pd.to_datetime(values[1])]
     return values
 
-def update_predicates(feature_values_list=None, copy_predicate_indices=None, negate_predicate_indices=None, delete_predicate_indices=None):
-    predicates = load_predicates(predicates_path)
+def get_feature_domain(feature, data, dtype):
+    if dtype == 'nominal':
+        return data[feature].unique().tolist()
+    else:
+        return [data[feature].min(), data[feature].max()]
+
+def get_feature_domains(features, data, dtypes):
+    return {f: get_feature_domain(f, data, dtypes[f]) for f in features}
+
+def update_predicates(predicates, new_predicates, hidden_predicates, archived_predicates, data, dtypes, predicate_id, other_predicates=None):
+    save_predicate_id(predicate_id + len(new_predicates), predicate_id_path)
+    new_display = {i+predicate_id: PredicateDisplay(i+predicate_id, colors[i+len(predicates) + len(hidden_predicates)], new_predicates[i].feature_values, dtypes).display() for i in range(len(new_predicates))}
+    feature_values = {i+predicate_id: new_predicates[i].feature_values for i in range(len(new_predicates))}
+    feature_domains = {k: get_feature_domains(v.keys(), data, dtypes) for k,v in feature_values.items()}
+
+    for i in range(len(new_predicates)):
+        new_predicates[i].fit(data)
+        predicates[i+predicate_id] = new_predicates[i]
+    all_predicates = {'default': predicates, 'hidden': hidden_predicates, 'archived': archived_predicates}
+    if other_predicates is not None:
+        for k,v in other_predicates.items():
+            all_predicates[k] = v
+    save_predicates(all_predicates, predicates_path)
+    spec = plot_predicates(predicates, target, num_bins)
+    return {'plot': spec, 'display': new_display, 'feature_values': feature_values, 'feature_domains': feature_domains, 'dtypes': dtypes}
+
+def add_predicate(feature_values, all_predicates=None):
+    if all_predicates is None:
+        all_predicates = load_predicates(predicates_path)
+    keys = list(all_predicates.keys())
+    hidden_predicates = all_predicates['hidden']
+    archived_predicates = all_predicates['archived']
+    predicates = all_predicates['default']
     data = load_data(data_path)
     dtypes = load_dtypes(dtypes_path)
     predicate_id = load_predicate_id(predicate_id_path)
 
-    if feature_values_list is not None:
-        parsed_feature_values_list = [{feature: parse_feature_values(feature, values, dtypes) for feature,values in feature_values.items()} for feature_values in feature_values_list]
-        added_predicates = [Predicate(feature_values, dtypes) for feature_values in parsed_feature_values_list]
+    parsed_feature_values = {feature: parse_feature_values(feature, values, dtypes) for feature, values in feature_values.items()}
+    new_predicate = Predicate(parsed_feature_values, dtypes)
+    return update_predicates(predicates, [new_predicate], hidden_predicates, archived_predicates, data, dtypes, predicate_id, {k: all_predicates[k] for k in keys if k not in ['hidden', 'archived', 'default']})
+
+def copy_predicate(predicate_id):
+    predicates = load_predicates(predicates_path)
+    predicate = predicates['default'][int(predicate_id)]
+    return add_predicate(predicate.feature_values, predicates)
+
+def delete_predicate(predicate_id):
+    all_predicates = load_predicates(predicates_path)
+    keys = list(all_predicates.keys())
+    hidden_predicates = all_predicates['hidden']
+    archived_predicates = all_predicates['archived']
+    predicates = all_predicates['default']
+    data = load_data(data_path)
+    dtypes = load_dtypes(dtypes_path)
+    all_predicate_id = load_predicate_id(predicate_id_path)
+    return update_predicates({k:v for k,v in predicates.items() if k!=predicate_id}, [], hidden_predicates, archived_predicates, data, dtypes, all_predicate_id, {k: all_predicates[k] for k in keys if k not in ['hidden', 'archived', 'default']})
+
+def negate_predicate(predicate_id):
+    all_predicates = load_predicates(predicates_path)
+    keys = list(all_predicates.keys())
+    hidden_predicates = all_predicates['hidden']
+    predicates = all_predicates['default']
+    archived_predicates = all_predicates['archived']
+    data = load_data(data_path)
+    dtypes = load_dtypes(dtypes_path)
+    predicates[int(predicate_id)].negate()
+    all_predicate_id = load_predicate_id(predicate_id_path)
+    return update_predicates(predicates, [], hidden_predicates, archived_predicates, data, dtypes, all_predicate_id, {k: all_predicates[k] for k in keys if k not in ['hidden', 'archived', 'default']})
+
+def hide_predicate(predicate_id):
+    predicates = load_predicates(predicates_path)
+    keys = list(predicates.keys())
+    key = int(predicate_id)
+    if key in predicates['default']:
+        predicates['hidden'][key] = predicates['default'][key]
+        del predicates['default'][key]
     else:
-        added_predicates = []
+        predicates['default'][key] = predicates['hidden'][key]
+        del predicates['hidden'][key]
+    data = load_data(data_path)
+    dtypes = load_dtypes(dtypes_path)
+    all_predicate_id = load_predicate_id(predicate_id_path)
+    return update_predicates(predicates['default'], [], predicates['hidden'], predicates['archived'], data, dtypes, all_predicate_id, {k: predicates[k] for k in keys if k not in ['hidden', 'archived', 'default']})
 
-    if copy_predicate_indices is not None:
-        copied_predicates = [Predicate(predicates[int(i)].feature_values, dtypes) for i in copy_predicate_indices]
+def focus_predicate(predicate_id):
+    predicates = load_predicates(predicates_path)
+    if predicate_id is None:
+        if 'focus_hidden' in predicates:
+            for k,v in predicates['focus_hidden'].items():
+                predicates['default'][k] = v
+        else:
+            predicates['focus_hidden'] = {}
     else:
-        copied_predicates = []
+        predicates['focus_hidden'] = {}
+        key = int(predicate_id)
+        for k,v in predicates['default'].items():
+            if k != key:
+                predicates['hidden'][k] = v
+                predicates['focus_hidden'][k] = v
+        predicates['default'] = {key: predicates['default'][key]}
+    data = load_data(data_path)
+    dtypes = load_dtypes(dtypes_path)
+    all_predicate_id = load_predicate_id(predicate_id_path)
+    return update_predicates(predicates['default'], [], predicates['hidden'], predicates['archived'], data, dtypes, all_predicate_id, {'focus_hidden': predicates['focus_hidden']})
 
-    if negate_predicate_indices is not None:
-        for i in negate_predicate_indices:
-            predicates[int(i)].negate()
+def inspect_predicate_feature(predicate_id, feature, features, predicates=None):
+    if predicates is None:
+        predicates = load_predicates(predicates_path)['default']
+    predicate = predicates[int(predicate_id)]
+    spec = plot_predicate(predicate, feature, target_features)
+    data = load_data(data_path)
+    dtypes = load_dtypes(dtypes_path)
+    feature_domains = get_feature_domains(dtypes.keys(), data, dtypes)
+    feature_values = predicate.feature_values
+    return {'plot': spec, 'display': None, 'features': features, 'feature_domains': feature_domains, 'feature_values': feature_values,'dtypes': dtypes}
 
-    new_predicates = added_predicates + copied_predicates
-    new_display = {i+predicate_id: PredicateDisplay(i+predicate_id, new_predicates[i].feature_values, dtypes).display() for i in range(len(new_predicates))}
-    save_predicate_id(predicate_id + len(new_predicates), predicate_id_path)
-    for i in range(len(new_predicates)):
-        new_predicates[i].fit(data)
-        predicates[i+predicate_id] = new_predicates[i]
-    save_predicates(predicates, predicates_path)
+def archive_predicate(predicate_id):
+    key = int(predicate_id)
+    predicates = load_predicates(predicates_path)
+    if key in predicates['default']:
+        predicates['archived'][key] = predicates['default'][key]
+        del predicates['default'][key]
+    else:
+        predicates['default'][key] = predicates['archived'][key]
+        del predicates['archived'][key]
+    if 'focus_hidden' in predicates:
+        for k,v in predicates['focus_hidden'].items():
+            predicates['default'][k] = v
+        predicates['focus_hidden'] = {}
+    data = load_data(data_path)
+    dtypes = load_dtypes(dtypes_path)
+    all_predicate_id = load_predicate_id(predicate_id_path)
+    
+    print(predicates)
+    return update_predicates(predicates['default'], [], predicates['hidden'], predicates['archived'], data, dtypes, all_predicate_id, {k: predicates[k] for k in predicates.keys() if k not in ['hidden', 'archived', 'default']})
 
-    spec = plot_predicates(predicates, target, num_bins)
-    return {'plot': spec, 'display': new_display}
-
-@app.route("/predicate", methods=['PUT'])
-def add_predicate():
+@app.route("/add_predicate", methods=['PUT'])
+def app_add_predicate():
     request_data = request.get_json(force=True)
     feature_values = request_data['feature_values']
-    copy_index = request_data['copy_index']
-    negate_index = request_data['negate_index']
-    if feature_values is not None:
-        res = update_predicates([feature_values], None, None, None)
-    if copy_index is not None:
-        res = update_predicates(None, [copy_index], None, None)
-    if negate_index is not None:
-        res = update_predicates(None, None, [negate_index], None)
+    res = add_predicate(feature_values)
     return json.dumps(res)
 
-@app.route("/predicate", methods=["DELETE"])
-def delete_predicate():
+@app.route("/copy_predicate", methods=['PUT'])
+def app_copy_predicate():
     request_data = request.get_json(force=True)
-    index = request_data['index']
-    res = update_predicates(None, None, None, [index])
+    predicate_id = request_data['predicate_id']
+    res = copy_predicate(predicate_id)
+    return json.dumps(res)
+
+@app.route("/delete_predicate", methods=['DELETE'])
+def app_delete_predicate():
+    request_data = request.get_json(force=True)
+    predicate_id = request_data['predicate_id']
+    res = delete_predicate(predicate_id)
+    return json.dumps(res)
+
+@app.route("/negate_predicate", methods=['PUT'])
+def app_negate_predicate():
+    request_data = request.get_json(force=True)
+    predicate_id = request_data['predicate_id']
+    res = negate_predicate(predicate_id)
+    return json.dumps(res)
+
+@app.route("/hide_predicate", methods=['POST'])
+def app_hide_predicate():
+    request_data = request.get_json(force=True)
+    predicate_id = request_data['predicate_id']
+    res = hide_predicate(predicate_id)
+    return json.dumps(res)
+
+@app.route("/focus_predicate", methods=['POST'])
+def app_focus_predicate():
+    request_data = request.get_json(force=True)
+    predicate_id = request_data['predicate_id']
+    res = focus_predicate(predicate_id)
+    return json.dumps(res)
+
+@app.route("/archive_predicate", methods=['POST'])
+def app_archive_predicate():
+    request_data = request.get_json(force=True)
+    predicate_id = request_data['predicate_id']
+    res = archive_predicate(predicate_id)
+    return json.dumps(res)
+
+@app.route("/inspect_predicate_feature", methods=['POST'])
+def app_inspect_predicate_feature():
+    request_data = request.get_json(force=True)
+    predicate_id = request_data['predicate_id']
+    feature = request_data['feature']
+    predicates = load_predicates(predicates_path)['default']
+    predicate = predicates[int(predicate_id)]
+    features = predicate.feature_mask.columns.tolist()
+    if feature is None:
+        feature = predicate.feature_mask.columns[0]
+    res = inspect_predicate_feature(predicate_id, feature, features, predicates=predicates)
+    res['feature'] = feature
     return json.dumps(res)
 
 if __name__ == "__main__":

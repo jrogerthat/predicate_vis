@@ -32,6 +32,20 @@ body {
     border-radius: 5px;
 }
 
+.selected-button {
+    color:dodgerblue
+}
+
+.unselected-button {
+    color:rgb(173, 173, 173) !important
+}
+
+#control {
+    margin: 15px
+}
+
+/* **************************************************** */
+
 .header {
     font-weight: bold;
     padding-left: 10px;
