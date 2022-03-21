@@ -70,9 +70,8 @@ class PredicateDisplay:
         archive = f"<button id='archive-{self.predicate_id}-button' class='predicate-button archive-button' disabled><i class='fa fa-box-archive'></i></i></button>"
 
         hide_plot = f"<button id='hide-plot-{self.predicate_id}-button' class='predicate-button hide-plot-button' style='color:{self.color}'><i class='fa fa-chart-simple'></i></i></button>"
-        buttons = [copy, negate, hide_plot, focus, hide, inspect, archive, delete]
-
-        # buttons = [copy, negate, inspect, archive, hide, color]
+        # buttons = [copy, negate, hide_plot, focus, hide, inspect, archive, delete]
+        buttons = [copy, negate, hide_plot, focus, hide, delete]
         return ''.join(buttons)
         
     def display(self):
