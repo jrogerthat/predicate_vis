@@ -1,5 +1,5 @@
 class Select {
-    constructor(container_id, label, values, selected, dtype, show_label, left_slider, right_slider){
+    constructor(container_id, label, values, selected, dtype, show_label, left_slider, right_slider, dropdown_target, dropdown_function){
         this.container_id = container_id
         this.label = label
         this.values = values
@@ -25,6 +25,8 @@ class Select {
             this.right_slider = "input." + this.label + "-slider-input[data-index=" + 1 + "]"
             this.make_right_slider = true
         }
+        this.dropdown_target = dropdown_target
+        this.dropdown_function = dropdown_function
     }
 
     make_dropdown(container){
@@ -48,6 +50,13 @@ class Select {
         $("#select-" + this.label).selectpicker()
         $("#select-" + this.label).change(function(){
             this.selected = $("#select-" + this.label).val()
+            if (this.dropdown_target != null){
+                var selected_str = '[' + this.selected.join(', ') + ']'
+                $(this.dropdown_target).html(selected_str)
+            }
+            if (this.dropdown_function != null){
+                this.dropdown_function(this.selected)
+            }
         }.bind(this))
     }
 
@@ -74,8 +83,12 @@ class Select {
     }
 
     update_selected_dropdown(){
+        console.log(update_selected_dropdown)
         $("#select-" + this.label).selectpicker('deselectAll')
         $("#select-" + this.label).selectpicker("val", this.selected)
+        if (this.dropdown_target != null){
+            console.log('update_target')
+        }
     }
 
     update_selected_slider(){

@@ -1,5 +1,6 @@
 class PredicateVis {
-    constructor(){
+    constructor(predicate_features){
+        this.predicate_features = predicate_features
         this.margin = 15
         this.make_dashboard()
         this.make_text_entry()
@@ -7,10 +8,51 @@ class PredicateVis {
         this.features = {}
 
         this.bind_predicate_button()
-        this.bind_mode_buttons()
+        this.make_control()
+        // this.bind_mode_buttons()
         this.plot = null
         this.inspect_clicked = null
         this.mode = 'default'
+    }
+
+    make_control(){
+        var hide = "<button id='hide-button'><i class='fa fa-eye'></i></button>"
+        var filter = "<select id=predicate-filter class='selectpicker' multiple>"
+        for (var i=0; i<this.predicate_features.length; i++){
+            filter += "<option>" + this.predicate_features[i] + "</option>"
+        }
+        filter += "<option selected>*</option></select>"
+        var container = "<div style='display: flex;'><div>" + hide + "</div><div>" + filter + "</div></div>"
+        $("#mode").append(container)
+
+        $("#predicate-filter").change(function(event){
+            var selected_array = []
+            var selected = event.currentTarget.selectedOptions
+            for (var i=0; i<selected.length; i++){
+                selected_array.push(selected[i].value)
+            }
+            if (selected_array[selected_array.length-1] == '*'){
+                if (selected_array.length == 1){
+                    $(".predicate").removeClass('filtered')
+                } else {
+                    $(".predicate").addClass('filtered')
+                    for (var j=0; j<selected_array.length-1; j++){
+                        $('.predicate-w-' + selected_array[j]).removeClass('filtered')
+                    }
+                }
+            } else {
+                $(".predicate").addClass('filtered')
+                var classes_array = []
+                console.log(selected_array)
+                for (var k=0; k<selected_array.length; k++){
+                    classes_array.push('.predicate-w-' + selected_array[k])
+                }
+                console.log(classes_array)
+                var classes = classes_array.join(', ')
+                console.log(classes)
+                $(classes).removeClass('filtered')
+            }
+        })
     }
 
     bind_mode_buttons(){
@@ -44,8 +86,8 @@ class PredicateVis {
     make_dashboard(){
         var rows_columns = {'columns': [
             {'id': 'control-container', 'width': .2, 'rows': [
-                {'id': 'mode', 'height': .1},
-                {'id': 'main', 'height': .65},
+                {'id': 'mode', 'height': .075},
+                {'id': 'main', 'height': .725},
                 {'id': 'entry', 'height': .25},
             ]},
             {'id': 'plot-container', 'width': .8, 'rows': [
@@ -115,28 +157,23 @@ class PredicateVis {
         $("#select-x").append(options_str)
     }
 
-    update_filters(feature_values, feature_domains, dtypes){
-        for (var feature in feature_values){
-            var select = new Select("control", feature, feature_domains[feature], feature_values[feature], dtypes[feature], true)
-            select.make_select()
-        }
-    }
+    // make_control(feature_values, feature_domain, dtypes){
+    //     console.log('make_control')
+    //     console.log(dtypes)
+    //     $("#control").empty()
+    //     var features = Object.keys(feature_values)
+    //     this.control = new Control("control", features, feature_domain, dtypes, null)
+    //     for (var feature in feature_values){
+    //         if (feature != features[0]){
+    //             this.control.add_filter(feature, feature_values[feature])
+    //         }
+    //     }
+    // }
 
-    make_control(feature_values, feature_domain, dtypes){
-        console.log('make_control')
-        console.log(dtypes)
-        $("#control").empty()
-        var features = Object.keys(feature_values)
-        this.control = new Control("control", features, feature_domain, dtypes, null)
-        for (var feature in feature_values){
-            if (feature != features[0]){
-                this.control.add_filter(feature, feature_values[feature])
-            }
+    request(url, data, type, saveplot, self){
+        if (self == null){
+            var self = this
         }
-    }
-
-    request(url, data, type, saveplot){
-        var self = this
         return $.ajax({
             url: url,
             type: type,
@@ -147,12 +184,12 @@ class PredicateVis {
                     if (saveplot){
                         self.plot = resp['plot']
                     }
-                    if ('features' in resp){
-                        console.log(resp)
-                        self.make_control(resp['feature_values'], resp['feature_domains'], resp['dtypes'])
-                        // self.update_select_x(resp['features'], resp['feature'])
-                        // self.update_filters(resp['feature_values'], resp['feature_domains'], resp['dtypes'])
-                    }
+                    // if ('features' in resp){
+                    //     console.log(resp)
+                    //     self.make_control(resp['feature_values'], resp['feature_domains'], resp['dtypes'])
+                    //     // self.update_select_x(resp['features'], resp['feature'])
+                    //     // self.update_filters(resp['feature_values'], resp['feature_domains'], resp['dtypes'])
+                    // }
                     self.update_plot_display(resp['plot'], resp['display'], resp['feature_values'], resp['feature_domains'], resp['dtypes'])
                 }
             }
@@ -160,13 +197,7 @@ class PredicateVis {
     }
 
     copy_predicate(predicate_id){
-        this.request('/copy_predicate', {'predicate_id': predicate_id}, 'PUT', true)
-    }
-
-    bind_button(button, predicate_id, func){
-        $("#" + button + "-" + predicate_id + "-button").click(function(){
-            func(predicate_id)
-        })
+        this.request('/copy_predicate', {'predicate_id': predicate_id}, 'PUT', true, null)
     }
 
     bind_copy_button(predicate_id){
@@ -177,7 +208,7 @@ class PredicateVis {
 
     negate_predicate(predicate_id){
         $("#negate-" + predicate_id).toggle()
-        this.request('/negate_predicate', {'predicate_id': predicate_id}, 'PUT', true)
+        this.request('/negate_predicate', {'predicate_id': predicate_id}, 'PUT', true, null)
     }
 
     bind_negate_button(predicate_id){
@@ -187,7 +218,7 @@ class PredicateVis {
     }
 
     delete_predicate(predicate_id){
-        this.request('/delete_predicate', {'predicate_id': predicate_id}, 'DELETE', true)
+        this.request('/delete_predicate', {'predicate_id': predicate_id}, 'DELETE', true, null)
     }
 
     bind_delete_button(predicate_id){
@@ -197,7 +228,7 @@ class PredicateVis {
     }
 
     inspect_predicate_feature(predicate_id, feature){
-        this.request('/inspect_predicate_feature', {'predicate_id': predicate_id, 'feature': feature}, 'POST', false)
+        this.request('/inspect_predicate_feature', {'predicate_id': predicate_id, 'feature': feature}, 'POST', false, null)
     }
 
     uninspect_predicate_feature(){
@@ -238,8 +269,26 @@ class PredicateVis {
         }.bind(this))
     }
 
+    update_predicate_clause(predicate_id, feature, values){
+        this.request('/update_predicate_clause', {'predicate_id': predicate_id, 'feature': feature, 'values': values}, 'POST', true)
+    }
+
+    // bind_update_predicate_clause(predicate_id, feature_values, dtypes){
+    //     for (var feature in feature_values){
+    //         if (dtypes[feature] == 'nominal'){
+    //             console.log("#select-predicate-" + predicate_id + "-" + feature)
+    //             $("#select-predicate-" + predicate_id + "-" + feature).remove()
+    //             $("#select-predicate-" + predicate_id + "-" + feature).change(function(){
+    //                 console.log(feature)
+    //             })
+    //         } else {
+
+    //         }
+    //     }
+    // }
+
     archive_predicate(predicate_id){
-        this.request('/archive_predicate', {'predicate_id': predicate_id}, 'POST', true)
+        this.request('/archive_predicate', {'predicate_id': predicate_id}, 'POST', true, null)
     }
 
     bind_archive_button(predicate_id){
@@ -263,7 +312,7 @@ class PredicateVis {
 
     hide_predicate(predicate_id){
         $(".hidden").hide()
-        this.request('/hide_predicate', {'predicate_id': predicate_id}, 'POST', true)
+        this.request('/hide_predicate', {'predicate_id': predicate_id}, 'POST', true, null)
     }
 
     bind_hide_button(predicate_id){
@@ -281,7 +330,7 @@ class PredicateVis {
     }
 
     focus_predicate(predicate_id){
-        this.request('/focus_predicate', {'predicate_id': predicate_id}, 'POST', true)
+        this.request('/focus_predicate', {'predicate_id': predicate_id}, 'POST', true, null)
     }
 
     bind_focus_button(predicate_id){
@@ -314,7 +363,7 @@ class PredicateVis {
     }
 
     bind_buttons(predicate_id){
-        this.bind_copy_button(predicate_id, this)
+        this.bind_copy_button(predicate_id)
         this.bind_negate_button(predicate_id)
         this.bind_hide_plot_button(predicate_id)
         this.bind_focus_button(predicate_id)
@@ -334,11 +383,36 @@ class PredicateVis {
     add_select(predicate_id, feature_values, feature_domains, dtypes){
         this.select[predicate_id] = {}
         for (var feature in feature_values){
+            var dtype = dtypes[feature]
             var container_id = 'predicate-' + predicate_id + '-' + feature + '-select'
-            var left_slider = '#predicate-' + predicate_id + '-' + feature + '-left'
-            var right_slider = '#predicate-' + predicate_id + '-' + feature + '-right'
-            this.select[predicate_id][feature] = new Select(container_id, feature, feature_domains[feature], feature_values[feature], dtypes[feature], false, left_slider, right_slider)
+            if (dtype == 'nominal'){
+                var left_slider = null
+                var right_slider = null
+                var dropdown_target = '#predicate-' + predicate_id + '-' + feature + '-values'
+            } else {
+                var left_slider = '#predicate-' + predicate_id + '-' + feature + '-left'
+                var right_slider = '#predicate-' + predicate_id + '-' + feature + '-right'
+                var dropdown_target = null
+            }
+
+            var self = this
+            function update_predicate_clause(predicate_id, feature, values){
+                self.request('/update_predicate_clause', {'predicate_id': predicate_id, 'feature': feature, 'values': values}, 'POST', true, self)
+            }
+            function dropdown_function(values){
+                update_predicate_clause(predicate_id, feature, values)
+            }
+
+            this.select[predicate_id][feature] = new Select(container_id, 'predicate-' + predicate_id + '-' + feature, feature_domains[feature], feature_values[feature], dtypes[feature], false, left_slider, right_slider, dropdown_target, dropdown_function)
             this.select[predicate_id][feature].make_select()
+            $("#select-" + feature).change(function(event){
+                var selected_options = event.currentTarget.selectedOptions
+                var selected = []
+                for (var i=0; i<selected_options.length; i++){
+                    selected.push(selected_options[i].value)
+                }
+                $("#predicate-" + predicate_id + "-" + feature + "-values").html('[' + selected.join(', ') + ']')
+            })
         }
     }
 
@@ -360,7 +434,7 @@ class PredicateVis {
         if (display != null){
             for (var i in display){
                 $("#predicates").append(display[i])
-                this.bind_buttons(i)
+                this.bind_buttons(i, feature_values[i], dtypes)
                 this.add_select(i, feature_values[i], feature_domains[i], dtypes)
                 this.bind_features_select(i, feature_values[i])
             }
@@ -382,10 +456,21 @@ class PredicateVis {
     }
 
     select_predicate_feature(predicate_id, feature){
-        var id = "predicate-" + predicate_id + "-" + feature
-        $(".predicate-" + predicate_id + "-select").hide()
-        $("#" + id + "-select").show()
-        $(".predicate-" + predicate_id + "-clause").removeClass("selected-feature")
-        $("#predicate-" + predicate_id + "-" + feature).addClass("selected-feature")
+        console.log('select_predicate_feature')
+        var predicate_id_str = "predicate-" + predicate_id
+        var predicate_feature_id_str = "predicate-" + predicate_id + "-" + feature
+        $("#" + predicate_feature_id_str + "-select").toggle()
+        $("#" + predicate_feature_id_str).toggleClass("selected-feature")
+        $("." + predicate_id_str + "-select").not("#" + predicate_feature_id_str + "-select").hide()
+        $("." + predicate_id_str).not("#" + predicate_feature_id_str).removeClass("selected-feature")
+
+
+        // console.log(".predicate-" + predicate_id + "-select")
+        // var id = "predicate-" + predicate_id + "-" + feature
+        // console.log("#" + id + "-select")
+        // $(".predicate-" + predicate_id + "-select").hide()
+        // $("#" + id + "-select").show()
+        // $(".predicate-" + predicate_id + "-clause").removeClass("selected-feature")
+        // $("#predicate-" + predicate_id + "-" + feature).addClass("selected-feature")
     }
 }

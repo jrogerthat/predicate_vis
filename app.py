@@ -16,10 +16,10 @@ app.secret_key = ''
 app.config['SESSION_TYPE'] = 'filesystem'
 path = os.path.dirname(os.path.realpath(__file__))
 colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#17becf", "#bcbd22"]
-data_path = 'static/data/data.csv'
-dtypes_path = 'static/data/dtypes.json'
-target = 'score'
-target_features = ['numeric_1', 'numeric_2', 'numeric_3']
+data_path = 'static/data/superstore_data.csv'
+dtypes_path = 'static/data/superstore_dtypes.json'
+target = 'iforest_score'
+features = ['Order Date', 'Ship Date', 'Ship Mode', 'Segment', 'State', 'Sub-Category', 'Discount']
 num_bins = 100
 
 session_id = "49324312"
@@ -30,8 +30,7 @@ predicate_id_path = f'static/data/predicate_id_{session_id}.json'
 def index():
     save_predicates({'default': {}, 'hidden': {}, 'archived': {}}, predicates_path)
     save_predicate_id(0, predicate_id_path)
-    y_select = Control(target_features).display()
-    return render_template("index.html", y_select=y_select)
+    return render_template("index.html", features=features)
 
 def load_data(data_path):
     data = pd.read_csv(f'{path}/{data_path}')
@@ -114,11 +113,6 @@ def get_feature_domains(features, data, dtypes):
     return {f: get_feature_domain(f, data, dtypes[f]) for f in features}
 
 def update_predicates(predicates, new_predicates, hidden_predicates, archived_predicates, data, dtypes, predicate_id, other_predicates=None):
-    save_predicate_id(predicate_id + len(new_predicates), predicate_id_path)
-    new_display = {i+predicate_id: PredicateDisplay(i+predicate_id, colors[i+len(predicates) + len(hidden_predicates)], new_predicates[i].feature_values, dtypes).display() for i in range(len(new_predicates))}
-    feature_values = {i+predicate_id: new_predicates[i].feature_values for i in range(len(new_predicates))}
-    feature_domains = {k: get_feature_domains(v.keys(), data, dtypes) for k,v in feature_values.items()}
-
     for i in range(len(new_predicates)):
         new_predicates[i].fit(data)
         predicates[i+predicate_id] = new_predicates[i]
@@ -126,8 +120,13 @@ def update_predicates(predicates, new_predicates, hidden_predicates, archived_pr
     if other_predicates is not None:
         for k,v in other_predicates.items():
             all_predicates[k] = v
+    save_predicate_id(predicate_id + len(new_predicates), predicate_id_path)
     save_predicates(all_predicates, predicates_path)
     spec = plot_predicates(predicates, target, num_bins)
+
+    new_display = {i+predicate_id: PredicateDisplay(i+predicate_id, colors[i+len(predicates) + len(hidden_predicates)], new_predicates[i].feature_values, dtypes).display() for i in range(len(new_predicates))}
+    feature_values = {i+predicate_id: new_predicates[i].feature_values for i in range(len(new_predicates))}
+    feature_domains = {k: get_feature_domains(v.keys(), data, dtypes) for k,v in feature_values.items()}
     return {'plot': spec, 'display': new_display, 'feature_values': feature_values, 'feature_domains': feature_domains, 'dtypes': dtypes}
 
 def add_predicate(feature_values, all_predicates=None):
@@ -209,6 +208,16 @@ def focus_predicate(predicate_id):
     all_predicate_id = load_predicate_id(predicate_id_path)
     return update_predicates(predicates['default'], [], predicates['hidden'], predicates['archived'], data, dtypes, all_predicate_id, {'focus_hidden': predicates['focus_hidden']})
 
+def update_predicate_clause(predicate_id, feature, values):
+    data = load_data(data_path)
+    dtypes = load_dtypes(dtypes_path)
+    all_predicate_id = load_predicate_id(predicate_id_path)
+    predicates = load_predicates(predicates_path)
+    predicate = predicates['default'][int(predicate_id)]
+    predicate.refit(data, feature, values)
+    predicates['default'][int(predicate_id)] = predicate    
+    return update_predicates(predicates['default'], [], predicates['hidden'], predicates['archived'], data, dtypes, all_predicate_id)
+
 def inspect_predicate_feature(predicate_id, feature, features, predicates=None):
     if predicates is None:
         predicates = load_predicates(predicates_path)['default']
@@ -280,6 +289,15 @@ def app_focus_predicate():
     request_data = request.get_json(force=True)
     predicate_id = request_data['predicate_id']
     res = focus_predicate(predicate_id)
+    return json.dumps(res)
+
+@app.route("/update_predicate_clause", methods=['POST'])
+def app_update_predicate_clause():
+    request_data = request.get_json(force=True)
+    predicate_id = request_data['predicate_id']
+    feature = request_data['feature']
+    values = request_data['values']
+    res = update_predicate_clause(predicate_id, feature, values)
     return json.dumps(res)
 
 @app.route("/archive_predicate", methods=['POST'])

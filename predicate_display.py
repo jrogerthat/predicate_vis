@@ -10,10 +10,10 @@ class PredicateDisplay:
         self.dtypes = dtypes
         
     def display_feature(self, feature, values):
+        id = f'predicate-{self.predicate_id}-{feature}'
         if (self.dtypes[feature] == 'nominal'):
-            values_str = values
+            values_str = f"<span id={id}-values>{values}</span>"
         else:
-            id = f'predicate-{self.predicate_id}-{feature}'
             values_str = f"[<span id={id}-left>{values[0]}</span>, <span id={id}-right>{values[1]}</span>]"
         html = f"""
             <span id=predicate-{self.predicate_id}-{feature} class='predicate-clause predicate-{self.predicate_id}-clause'>{feature}={values_str}</span>
@@ -25,7 +25,7 @@ class PredicateDisplay:
         style = """
         <style>
         .predicate-clause {
-            border: 1px solid #000000 !important;
+            border: 1px solid #000000;
             margin: 2px;
             padding: 5px;
             border-radius: 7px;
@@ -76,8 +76,9 @@ class PredicateDisplay:
         
     def display(self):
         buttons = self.display_buttons()
+        classes = ' '.join(['predicate-w-' + feature  for feature in self.feature_values.keys()])
         html = f"""
-        <div id='predicate-{self.predicate_id}' class='predicate default'>
+        <div id='predicate-{self.predicate_id}' class='predicate default {classes}'>
         <div class='predicate-clauses'>
         <span id=negate-{self.predicate_id} class='predicate-clause negate'>NOT</span>
         {''.join([self.display_feature(feature, values) for feature, values in self.feature_values.items()])}

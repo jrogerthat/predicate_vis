@@ -44,6 +44,19 @@ body {
     margin: 15px
 }
 
+.selected-feature {
+    border: 2px solid #4f7eff !important;
+}
+
+.filtered {
+    display: none !important;
+}
+
+#mode {
+    padding-left: 15px;
+    padding-right: 15px;
+    padding-top: 15px;
+}
 /* **************************************************** */
 
 .header {
