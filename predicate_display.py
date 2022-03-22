@@ -76,7 +76,8 @@ class PredicateDisplay:
         
     def display(self):
         buttons = self.display_buttons()
-        classes = ' '.join(['predicate-w-' + feature  for feature in self.feature_values.keys()])
+        features = '-'.join(sorted(self.feature_values.keys()))
+        classes = ' '.join(['predicate-w-' + feature  for feature in self.feature_values.keys()] + ['predicate-' + features])
         html = f"""
         <div id='predicate-{self.predicate_id}' class='predicate default {classes}'>
         <div class='predicate-clauses'>

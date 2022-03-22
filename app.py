@@ -124,7 +124,7 @@ def update_predicates(predicates, new_predicates, hidden_predicates, archived_pr
     save_predicates(all_predicates, predicates_path)
     spec = plot_predicates(predicates, target, num_bins)
 
-    new_display = {i+predicate_id: PredicateDisplay(i+predicate_id, colors[i+len(predicates) + len(hidden_predicates)], new_predicates[i].feature_values, dtypes).display() for i in range(len(new_predicates))}
+    new_display = {i+predicate_id: PredicateDisplay(i+predicate_id, colors[i+predicate_id], new_predicates[i].feature_values, dtypes).display() for i in range(len(new_predicates))}
     feature_values = {i+predicate_id: new_predicates[i].feature_values for i in range(len(new_predicates))}
     feature_domains = {k: get_feature_domains(v.keys(), data, dtypes) for k,v in feature_values.items()}
     return {'plot': spec, 'display': new_display, 'feature_values': feature_values, 'feature_domains': feature_domains, 'dtypes': dtypes}
@@ -175,20 +175,25 @@ def negate_predicate(predicate_id):
     all_predicate_id = load_predicate_id(predicate_id_path)
     return update_predicates(predicates, [], hidden_predicates, archived_predicates, data, dtypes, all_predicate_id, {k: all_predicates[k] for k in keys if k not in ['hidden', 'archived', 'default']})
 
-def hide_predicate(predicate_id):
+def hide_predicates(predicate_ids, hide=False):
     predicates = load_predicates(predicates_path)
     keys = list(predicates.keys())
-    key = int(predicate_id)
-    if key in predicates['default']:
-        predicates['hidden'][key] = predicates['default'][key]
-        del predicates['default'][key]
-    else:
-        predicates['default'][key] = predicates['hidden'][key]
-        del predicates['hidden'][key]
+    for predicate_id in predicate_ids:
+        key = int(predicate_id)
+        if key in predicates['default']:
+            predicates['hidden'][key] = predicates['default'][key]
+            del predicates['default'][key]
+        else:
+            if not hide:
+                predicates['default'][key] = predicates['hidden'][key]
+                del predicates['hidden'][key]
     data = load_data(data_path)
     dtypes = load_dtypes(dtypes_path)
     all_predicate_id = load_predicate_id(predicate_id_path)
     return update_predicates(predicates['default'], [], predicates['hidden'], predicates['archived'], data, dtypes, all_predicate_id, {k: predicates[k] for k in keys if k not in ['hidden', 'archived', 'default']})
+
+def hide_predicate(predicate_id, hide=False):
+    return hide_predicates([predicate_id])
 
 def focus_predicate(predicate_id):
     predicates = load_predicates(predicates_path)
@@ -287,11 +292,20 @@ def app_negate_predicate():
     res = negate_predicate(predicate_id)
     return json.dumps(res)
 
+@app.route("/hide_predicates", methods=['POST'])
+def app_hide_predicates():
+    request_data = request.get_json(force=True)
+    predicate_ids = request_data['predicate_ids']
+    hide = request_data['hide']
+    res = hide_predicates(predicate_ids, hide)
+    return json.dumps(res)
+
 @app.route("/hide_predicate", methods=['POST'])
 def app_hide_predicate():
     request_data = request.get_json(force=True)
     predicate_id = request_data['predicate_id']
-    res = hide_predicate(predicate_id)
+    hide = request_data['hide']
+    res = hide_predicate(predicate_id, hide)
     return json.dumps(res)
 
 @app.route("/focus_predicate", methods=['POST'])

@@ -42,17 +42,18 @@ class PredicateVis {
                 }
             } else {
                 $(".predicate").addClass('filtered')
-                var classes_array = []
-                console.log(selected_array)
-                for (var k=0; k<selected_array.length; k++){
-                    classes_array.push('.predicate-w-' + selected_array[k])
-                }
-                console.log(classes_array)
-                var classes = classes_array.join(', ')
-                console.log(classes)
-                $(classes).removeClass('filtered')
+                var classname = '.predicate-' + selected_array.sort().join('-')
+                console.log(classname)
+                $(classname).removeClass('filtered')
             }
-        })
+            var filtered = $('.filtered')
+            console.log(filtered)
+            var filtered_predicate_ids = []
+            for (var i=0; i<filtered.length; i++){
+                filtered_predicate_ids.push(filtered[i].id.split('-')[1])
+            }
+            this.hide_predicates(filtered_predicate_ids, true)
+        }.bind(this))
     }
 
     bind_mode_buttons(){
@@ -310,9 +311,14 @@ class PredicateVis {
         }.bind(this))
     }
 
-    hide_predicate(predicate_id){
+    hide_predicate(predicate_id, hide){
         $(".hidden").hide()
-        this.request('/hide_predicate', {'predicate_id': predicate_id}, 'POST', true, null)
+        this.request('/hide_predicate', {'predicate_id': predicate_id, 'hide': hide}, 'POST', true, null)
+    }
+
+    hide_predicates(predicate_ids, hide){
+        $(".hidden").hide()
+        this.request('/hide_predicates', {'predicate_ids': predicate_ids, 'hide': hide}, 'POST', true, null)
     }
 
     bind_hide_button(predicate_id){
@@ -325,7 +331,7 @@ class PredicateVis {
                 $("#predicate-" + predicate_id).addClass("hidden")
                 $("#hide-" + predicate_id + "-button").html('<i class="fa fa-eye" aria-hidden="true"></i>')
             }
-            this.hide_predicate(predicate_id)
+            this.hide_predicate(predicate_id, false)
         }.bind(this))
     }
 
@@ -359,6 +365,7 @@ class PredicateVis {
             } else {
                 $("#hide-plot-" + predicate_id + "-button").addClass("unselected-button")
             }
+            this.hide_predicate(predicate_id, false)
         }.bind(this))
     }
 
