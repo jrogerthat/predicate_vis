@@ -41,7 +41,15 @@
     <div id="dashboard"></div>
 
     <script>
+        var predicates = [
+              {'Sub-Category': ['Copiers']},
+              {'Sub-Category': ['Machines']},
+              {'Sub-Category': ['Tables']},
+              {'State': ['New York']},
+              {'Discount': [.3, .7]}
+          ]
         var predicate_vis = new PredicateVis({{features|safe}})
+        predicate_vis.add_predicates(predicates)
         // var y_select = "{{y_select|safe}}"
         // $("#control").append(y_select)
 

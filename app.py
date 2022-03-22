@@ -129,7 +129,7 @@ def update_predicates(predicates, new_predicates, hidden_predicates, archived_pr
     feature_domains = {k: get_feature_domains(v.keys(), data, dtypes) for k,v in feature_values.items()}
     return {'plot': spec, 'display': new_display, 'feature_values': feature_values, 'feature_domains': feature_domains, 'dtypes': dtypes}
 
-def add_predicate(feature_values, all_predicates=None):
+def add_predicates(feature_values, all_predicates=None):
     if all_predicates is None:
         all_predicates = load_predicates(predicates_path)
     keys = list(all_predicates.keys())
@@ -140,9 +140,12 @@ def add_predicate(feature_values, all_predicates=None):
     dtypes = load_dtypes(dtypes_path)
     predicate_id = load_predicate_id(predicate_id_path)
 
-    parsed_feature_values = {feature: parse_feature_values(feature, values, dtypes) for feature, values in feature_values.items()}
-    new_predicate = Predicate(parsed_feature_values, dtypes)
-    return update_predicates(predicates, [new_predicate], hidden_predicates, archived_predicates, data, dtypes, predicate_id, {k: all_predicates[k] for k in keys if k not in ['hidden', 'archived', 'default']})
+    parsed_feature_values = [{feature: parse_feature_values(feature, values, dtypes) for feature, values in f.items()} for f in feature_values]
+    new_predicates = [Predicate(f, dtypes) for f in parsed_feature_values]
+    return update_predicates(predicates, new_predicates, hidden_predicates, archived_predicates, data, dtypes, predicate_id, {k: all_predicates[k] for k in keys if k not in ['hidden', 'archived', 'default']})
+
+def add_predicate(feature_values, all_predicates=None):
+    return add_predicates([feature_values], all_predicates)
 
 def copy_predicate(predicate_id):
     predicates = load_predicates(predicates_path)
@@ -254,6 +257,13 @@ def app_add_predicate():
     request_data = request.get_json(force=True)
     feature_values = request_data['feature_values']
     res = add_predicate(feature_values)
+    return json.dumps(res)
+
+@app.route("/add_predicates", methods=['PUT'])
+def app_add_predicates():
+    request_data = request.get_json(force=True)
+    feature_values = request_data['feature_values']
+    res = add_predicates(feature_values)
     return json.dumps(res)
 
 @app.route("/copy_predicate", methods=['PUT'])

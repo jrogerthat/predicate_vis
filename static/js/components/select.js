@@ -1,5 +1,5 @@
 class Select {
-    constructor(container_id, label, values, selected, dtype, show_label, left_slider, right_slider, dropdown_target, dropdown_function){
+    constructor(container_id, label, values, selected, dtype, show_label, left_slider, right_slider, dropdown_target, update_function){
         this.container_id = container_id
         this.label = label
         this.values = values
@@ -26,7 +26,7 @@ class Select {
             this.make_right_slider = true
         }
         this.dropdown_target = dropdown_target
-        this.dropdown_function = dropdown_function
+        this.update_function = update_function
     }
 
     make_dropdown(container){
@@ -54,8 +54,8 @@ class Select {
                 var selected_str = '[' + this.selected.join(', ') + ']'
                 $(this.dropdown_target).html(selected_str)
             }
-            if (this.dropdown_function != null){
-                this.dropdown_function(this.selected)
+            if (this.update_function != null){
+                this.update_function(this.selected)
             }
         }.bind(this))
     }
@@ -180,6 +180,12 @@ class Select {
                     var values = ui.values
                 }
                 this.update_selected(values)
+            }.bind(this),
+
+            stop: function(event, ui) {
+                if (this.update_function != null){
+                    this.update_function(this.selected)
+                };
             }.bind(this)
         });
     }

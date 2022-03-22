@@ -399,11 +399,11 @@ class PredicateVis {
             function update_predicate_clause(predicate_id, feature, values){
                 self.request('/update_predicate_clause', {'predicate_id': predicate_id, 'feature': feature, 'values': values}, 'POST', true, self)
             }
-            function dropdown_function(values){
+            function update_function(values){
                 update_predicate_clause(predicate_id, feature, values)
             }
 
-            this.select[predicate_id][feature] = new Select(container_id, 'predicate-' + predicate_id + '-' + feature, feature_domains[feature], feature_values[feature], dtypes[feature], false, left_slider, right_slider, dropdown_target, dropdown_function)
+            this.select[predicate_id][feature] = new Select(container_id, 'predicate-' + predicate_id + '-' + feature, feature_domains[feature], feature_values[feature], dtypes[feature], false, left_slider, right_slider, dropdown_target, update_function)
             this.select[predicate_id][feature].make_select()
             $("#select-" + feature).change(function(event){
                 var selected_options = event.currentTarget.selectedOptions
@@ -443,6 +443,10 @@ class PredicateVis {
 
     add_predicate(feature_values){
         this.request('/add_predicate', {'feature_values': feature_values}, 'PUT', true)
+    }
+
+    add_predicates(feature_values){
+        this.request('/add_predicates', {'feature_values': feature_values}, 'PUT', true)
     }
 
     bind_predicate_button(){
