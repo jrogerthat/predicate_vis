@@ -16,13 +16,14 @@ class PredicateVis {
     }
 
     make_control(){
-        var hide = "<button id='hide-button'><i class='fa fa-eye'></i></button>"
+        // var hide = "<button id='hide-button'><i class='fa fa-eye'></i></button>"
         var filter = "<select id=predicate-filter class='selectpicker' multiple>"
         for (var i=0; i<this.predicate_features.length; i++){
             filter += "<option>" + this.predicate_features[i] + "</option>"
         }
         filter += "<option selected>*</option></select>"
-        var container = "<div style='display: flex;'><div>" + hide + "</div><div>" + filter + "</div></div>"
+        var container = "<div style='display: flex;'><div>" + filter + "</div></div>"
+        // var container = "<div style='display: flex;'><div>" + hide + "</div><div>" + filter + "</div></div>"
         $("#mode").append(container)
 
         $("#predicate-filter").change(function(event){
@@ -99,7 +100,7 @@ class PredicateVis {
         var panels = ['control-container', 'plot-container']
         var headers = []
 
-        this.dashboard = new Dashboard("PredicateVis", "dashboard", rows_columns, panels, headers, this.margin)
+        this.dashboard = new Dashboard("PIXAL", "dashboard", rows_columns, panels, headers, this.margin)
         this.dashboard.make_header()
         this.dashboard.make_content()
         this.dashboard.make_footer()
@@ -114,7 +115,7 @@ class PredicateVis {
 
     make_text_entry(){
         $("#entry").append(
-            "<div id='predicate-text-container' style='padding: 10px'><div><textarea id='predicate-text' style='height: 150px'></textarea></div><div><button id='predicate-button'><i class='fa fa-plus'></i></button></div></div>"
+            "<div id='predicate-text-container' style='padding: 10px'><div><textarea id='predicate-text' style='height: 100px'></textarea></div><div><button id='predicate-button'>Add Predicate <i class='fa fa-plus'></i></button></div></div>"
         )
         $("#predicate-text").width($("#entry").width() - 2*this.margin)
     }
@@ -445,7 +446,25 @@ class PredicateVis {
                 this.add_select(i, feature_values[i], feature_domains[i], dtypes)
                 this.bind_features_select(i, feature_values[i])
             }
+            this.bind_predicate_hover()
         }
+    }
+
+    hover_predicate(predicate_id){
+        this.request('/hover_predicate', {'predicate_id': predicate_id}, 'POST', true)
+    }
+
+    bind_predicate_hover(){
+        $(".predicate").unbind()
+        $(".predicate").mouseenter(function(event){
+            console.log('enter')
+            var predicate_id = event.currentTarget.id.split('-')[1]
+            console.log(predicate_id)
+            this.hover_predicate(predicate_id)
+        }.bind(this))
+        $(".predicate").mouseleave(function(event){
+            this.hover_predicate(null)
+        }.bind(this))
     }
 
     add_predicate(feature_values){

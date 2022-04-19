@@ -1,0 +1,1 @@
+{"date": "date", "state": "nominal", "product": "nominal", "units": "numeric", "unit_price": "numeric", "unit_cost": "numeric", "sales": "numeric", "profit": "numeric", "temperature": "numeric", "precipitation": "numeric", "anomaly_score": "score"}

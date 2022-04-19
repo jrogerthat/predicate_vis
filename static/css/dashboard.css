@@ -52,10 +52,20 @@ body {
     display: none !important;
 }
 
+#main {
+    overflow-y: scroll;
+}
+
 #mode {
     padding-left: 15px;
     padding-right: 15px;
     padding-top: 15px;
+}
+
+#entry {
+    padding-left: 15px;
+    padding-right: 15px;
+    padding-bottom: 15px;
 }
 /* **************************************************** */
 

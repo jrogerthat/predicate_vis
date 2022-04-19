@@ -71,13 +71,13 @@ class PredicateDisplay:
 
         hide_plot = f"<button id='hide-plot-{self.predicate_id}-button' class='predicate-button hide-plot-button' style='color:{self.color}'><i class='fa fa-chart-simple'></i></i></button>"
         # buttons = [copy, negate, hide_plot, focus, hide, inspect, archive, delete]
-        buttons = [copy, negate, hide_plot, focus, hide, delete]
+        buttons = [copy, negate, focus, color, hide, delete]
         return ''.join(buttons)
         
     def display(self):
         buttons = self.display_buttons()
         features = '-'.join(sorted(self.feature_values.keys()))
-        classes = ' '.join(['predicate-w-' + feature  for feature in self.feature_values.keys()] + ['predicate-' + features])
+        classes = ' '.join(['predicate-w-' + feature  for feature in self.feature_values.keys()] + ['predicate-w-' + features])
         html = f"""
         <div id='predicate-{self.predicate_id}' class='predicate default {classes}'>
         <div class='predicate-clauses'>

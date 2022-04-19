@@ -1,0 +1,1 @@
+{"Order-Date": "date", "Ship-Mode": "nominal", "Segment": "nominal", "State": "nominal", "Sub-Category": "nominal", "Quantity": "ordinal", "Unit-Price": "numeric", "Unit-Cost": "numeric", "iforest_score": "numeric", "precipitation": "numeric", "temperature": "numeric"}

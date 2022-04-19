@@ -1,0 +1,1 @@
+{"Order Date": "date", "Ship Date": "date", "Ship Mode": "nominal", "Segment": "nominal", "State": "nominal", "Sub-Category": "nominal", "Discount": "numeric", "Sales": "numeric", "Quantity": "ordinal", "Profit": "numeric"}
