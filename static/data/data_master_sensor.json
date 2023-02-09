@@ -1,0 +1,5 @@
+{
+    "csv_data" : "static/data/sensor_data.csv",
+    "data_types" : "static/data/sensor_dtypes.json",
+    "predicates" : "static/data/sensor_predicates.json"
+}

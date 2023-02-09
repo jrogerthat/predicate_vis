@@ -17,18 +17,23 @@ app.config['SESSION_TYPE'] = 'filesystem'
 path = os.path.dirname(os.path.realpath(__file__))
 colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#7f7f7f", "#17becf", "#bcbd22"]
 
-# data_path = 'static/data/augmented_superstore_data.csv'
-# dtypes_path = 'static/data/augmented_superstore_dtypes.json'
-data_path = 'static/data/sensor_data.csv'
-dtypes_path = 'static/data/sensor_dtypes.json'
+data_read = open(f"static/data/data_master_augmented_superstore.json", 'r')
+data_paths = json.load(data_read)
+data_path = data_paths["csv_data"]
+dtypes_path = data_paths["data_types"]
+
+feature_read = open(f'{dtypes_path}', 'r')
+feature_test = json.load(feature_read)
+
 target = 'iforest_score'
-# features = ['Order-Date', 'Ship-Mode', 'Segment', 'State', 'Sub-Category', 'Discount', 'temperature', 'precipitation']
-features = ['sensor_id', 'location_id', 'voltage', 'iforest_score']
+features = list(feature_test.keys())
+
 num_bins = 100
 
 session_id = "49324312"
 predicates_path = f'static/data/predicates_{session_id}.pkl'
 predicate_id_path = f'static/data/predicate_id_{session_id}.json'
+
 
 @app.route("/")
 def index():
@@ -115,6 +120,9 @@ def plot_predicate(predicate, x_feature, target_features, hover_id=None):
     spec['height'] = 'container'
     return spec
 
+"""
+This is throwing a key error on superstore data
+"""
 def parse_feature_values(feature, values, dtypes):
     if dtypes[feature] == 'numeric':
         values = [float(values[0]), float(values[1])]

@@ -1,0 +1,5 @@
+{
+    "csv_data" : "static/data/augmented_superstore_data.csv",
+    "data_types" : "static/data/augmented_superstore_dtypes.json",
+    "predicates" : "static/data/augmented_superstore_predicates.json"
+}
